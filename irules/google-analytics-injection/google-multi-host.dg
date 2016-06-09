@@ -1,0 +1,11 @@
+ltm data-group internal HOST_TRACKING_MAPPING {
+    records {
+        blog.e-xpertsolutions.com {
+            data UA-XXXXX-Z
+        }
+        www.e-xpertsolutions.com {
+            data UA-XXXXX-Y
+        }
+    }
+    type string
+}
