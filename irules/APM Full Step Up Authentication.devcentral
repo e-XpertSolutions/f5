@@ -1,0 +1,100 @@
+### Installation ###
+
+#### ***irule*** ####
+
+To make it works, you need to install the irule on the Virtual Server that publish your application with APM authentication. 
+
+#### ***datagroup*** ####
+
+You need to create a datagroup of string type. This dg must contains http path that need an additional authentication step. The dg is named loa3_uri in the irule example.
+
+#### ***access profile*** ####
+
+If you already have an existing access profile, you will need to modify it and include some additionnal configuration in your VPE. If you have no access profile, you can starts building your own based on the description we provide below.
+
+### Scenarios ###
+
+#### ***1) User try to reach strong uri after first authentication process*** ####
+
+In this scenario, the user first authenticate using a standard authentication mecanism. Once authenticated, if the user request content that is behing strong uris, the user restart an authentication process in the "Strong Auth" and "Already Auth" branch of the VPE.
+
+#### ***2) User try to reach strong uri during the first authentication process*** ####
+
+If the user try to access a strong uri on its first attempt, he will need to complete the full authentication process. Then, he can access every part of the web application without any additional prompt.
+
+### Special considerations ###
+
+#### ***Client certificate Authentication*** ####
+
+You may need to use Client certificate authentication as a primary factor or second factor. We highly recommend to use "SSl on-demand authentication" if you need it as primary factor. 
+Client Certificate is not supported as a second factor, you need to use SSl on-demand authentication.
+
+#### ***WebSSO*** ####
+
+When first authentication has already been allowed and the user try to access a protected uri, the system will invite the user to complete the new authentication (second factor). This process will restart a webSSO action on the backend. Basic, NTLM and Kerberos webSSO have been tested with success.
+
+### Configuring the Visual Policy Editor ###
+
+The printscreen below is a minimal Visual Policy Editor used to make Step up Authentication works properly : 
+
+![VPE Printscreen](/Portals/0/Users/136/00/113800/printscreen.png)
+
+#### ***Strong Auth*** ####
+
+The strong Auth block is an "Empty Action" with two branch. 
+
+The branch named "Strong" contains the following condition : `expr { [mcget {session.server.landinguri}] starts_with "/strong" || [mcget {session.custom.last.strong}] == 1 }`
+
+We check that the uri starts with strong (used in scenario 1) or if a custom variable is set to 1 (second scenario)
+
+#### ***Already Auth*** ####
+This is an empty action with two branch. The branch named "yes" contains the following expression : `expr { [mcget {session.custom.last.authresult}] contains "true" }`
+
+#### ***2-factor Ending*** ####
+
+`session.custom.last.authtype` variable must be set to 1
+
+`session.policy.result.redirect.url` must be changed. The `session.server.landinguri` contains the true origin uri.
+
+To set this variable, you must use the tcl script below : 
+
+			proc urldecode str {
+				variable map
+				variable alphanumeric a-zA-Z0-9
+				for {set i 0} {$i <= 256} {incr i} {        set c [format %c $i]
+					if {![string match \[$alphanumeric\] $c]} {
+						set map($c) %[format %.2x $i]
+					}
+				}
+				array set map { " " + \n %0d%0a }
+				set str [string map [list + { } "\\" "\\\\"] $str]
+				regsub -all -- {%([A-Fa-f0-9][A-Fa-f0-9])} $str {\\u00\1} str
+				return [subst -novar -nocommand $str]
+			}
+			set decoded_uri [urldecode [string range [mcget {session.server.landinguri}] [expr { [string last = [mcget {session.server.landinguri}]] + 1 }] end]]
+			return $decoded_uri
+
+#### ***Full strong Ending*** ####
+
+`session.custom.last.authtype` variable must be set to 1
+
+#### ***Standard Ending*** ####
+
+`session.custom.last.authtype` variable must be set to 0
+
+### Session variables ###
+
+The following variables can be used in the 2-factor section of the Visual Policy Editor :
+
+*   session.custom.last.username
+*   session.custom.last.password
+
+### Features ###
+
+*	2-step authentication
+*	Retrieve username and password from first authentication
+*	Encrypt Session1 cookie to avoid session Hijacking
+
+### External links ###
+
+Github : [https://github.com/e-XpertSolutions/f5](https://github.com/e-XpertSolutions/f5)
