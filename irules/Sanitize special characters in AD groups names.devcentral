@@ -1,0 +1,55 @@
+##################################
+# DevCentral link:
+##################################
+
+https://devcentral.f5.com/codeshare/sanitize-special-characters-in-ad-groups-names-1040
+
+##################################
+# Problem this snippet solves:
+##################################
+
+With APM, when you query Active Directory to retrieve the groups membership, if an AD group contains one or several special characters, the name of the group is considered not printable by APM and therefore is transformed in hex format. 
+
+For example, if the name of an AD group is **"Comptes_éditeurs"** (in french), the APM session variable after AD query will be **"session.ad.last.attr.memberOf = 0x436f6d707465735fc3a964697465757273"**. This is not convenient for usage in the APM policy. 
+
+This snippet offers an iRule to transform "not printable" group names into printable group names by replacing all not printable chars by printable ones.
+Indeed, the previous example **"Comptes_éditeurs"** will be transformed by this snippet into **"Comptes_editeurs"**, which will be printed properly and can be used as usual in an APM policy.
+
+
+##################################
+# How to use this snippet:
+##################################
+
+# Installation #
+
+### *irule* ###
+To make it works, you need to install the irule on the Virtual Server that publish your application with APM authentication.
+
+### *datagroup* ###
+
+You need to create a strings datagroup named **"dg_special_chars"** that contains all the not printable chars you want to replace with their replacement char. The following datagroup will replace **"é, è, ê, ë"** with the normal **"e"** :
+
+**c3a8 : 65**   (è => e)  
+**c3a9 : 65**   (é => e)  
+**c3aa : 65**   (ê => e)  
+**c3ab : 65**   (ë => e)  
+
+The original special chars here (keys in the datagroup) are in **hex format of UTF-8**. You can have a look here [http://www.utf8-chartable.de/](http://www.utf8-chartable.de/) to find them. 
+
+The replacement chars (values in the datagroup) are in **hex format of standard ASCII**. You can have a look here in the "ASCII printable characters" table [http://www.rapidtables.com/code/text/ascii-table.htm](http://www.rapidtables.com/code/text/ascii-table.htm). 
+
+For example, if you need to replace "£" with "?", you need the following entry in your datagroup :
+
+c2a3 : 3f
+
+
+### *APM Policy* ###
+
+In your APM policy you need to add a bloc **"iRule Event"** right after you call AD Query and before you test groups membership. In the "iRule Event" bloc, the "Custom iRule Event Agent" needs to be **"clean_group_names"**. 
+
+After this iRule Event, the sanitized groups names will be stored in the APM session variable **"session.custom.ad.memberOf"**.
+
+To test groups membership, you can use the following condition in an "Empty" bloc : 
+**expr { [mcget {session.custom.ad.memberOf}] contains "CN=MY_GROUP, CN=Users, DC=MY_DOMAIN" }**
+
+
