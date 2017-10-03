@@ -1,0 +1,37 @@
+### Installation ###
+
+#### ***Files*** ####
+
+You need to upload an html login page using ifiles.
+
+You need to upload the SOAP body of the external web service using ifiles.
+
+#### ***irule*** ####
+
+You need to install the irule on your Virtual Server you need to protect.
+
+#### ***Variables*** ####
+
+	set static::holdtime 3600 								# session timeout
+	set static::login_url "/login"							# login url 
+	set static::sideband_vs "VS_EXTERNAL_AUTH_PROVIDER"		# Virtual Server that publish the web service
+
+### Features ###
+
+#### ***Version 1.0*** ####
+
+*   Form based login (provided by a custom ifile)
+*	Authentication against an external SOAP web service
+*	Manage Session timeout
+
+#### ***Backlog*** ####
+
+*   Improve logging
+*	Allow 2-factor authentication (Challenge)
+*	Encrypt Session cookie
+*	Provide internal mecanism to generate a session cookie
+*	accept Basic Authentication
+
+### External links ###
+
+Github : [https://github.com/e-XpertSolutions/f5](https://github.com/e-XpertSolutions/f5)
