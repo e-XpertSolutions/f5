@@ -1,0 +1,18 @@
+Add a piece of javascript in the Advanced Customization of your Access profile. You can include the code at the end of the hometab.inc javascript file.
+
+    window.onclick = function(e) {
+        if (e.target.parentNode.className == "favorite") {
+            var xhttp = new XMLHttpRequest();
+            console.log(e.target.parentNode.id);
+            var uri = "/analytics?t=" + Math.random() + "&r=" + encodeURIComponent(window.btoa(e.target.parentNode.id)) + "&d=" + Date.now();
+            xhttp.open("GET", uri, true);
+            xhttp.send();
+        }
+    };
+
+Then, add the irule provided in the attachment of this article to the Virtual Server with the access profile.
+
+Here is an example of logged accesses : 
+
+    time=08/14/17 20:19:24, clientip=10.20.30.5, user=test, session=a7585749, res=/Common/fullvpn-test
+    time=08/14/17 20:19:22, clientip=10.20.30.5, user=test, session=a7585749, res=/Common/debian-test

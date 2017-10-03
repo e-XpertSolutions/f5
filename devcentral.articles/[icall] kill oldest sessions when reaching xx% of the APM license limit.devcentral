@@ -1,0 +1,30 @@
+### TMSH command to create an icall script
+
+`create sys icall script apm_purge_sessions`
+
+Then copy/paste the content of the icall script and save it. By default, the command create a script named "apm_purge_sessions". You can easily change the name of the script by modifying "apm_purge_sessions" in the command line.
+
+### TMSH command to create the icall handler
+
+The following command trigger the script every 60 seconds. It can be changed to increase the frequency of the execution of the script.
+
+`create sys icall handler periodic f5-apm-purge-session interval 60 script apm_purge_sessions`
+
+### Interesting tcl commands used in the script
+
+Retrieve the max_access_session variable in the license of the device:
+
+`[string trim [lindex [split [exec /usr/bin/tmsh show /sys license detail | grep access] " "] 1] "\[\]"]`
+
+retrieve the ordered list (oldest first) of active APM sessionIDs
+
+`catch {set output [exec /usr/bin/sessiondump --allkeys | grep starttime | sort -k3 | cut -c1-8]}`
+
+### Use cases
+
+*   kill oldest sessions when reaching xx% of the APM license limit
+
+### Evolution
+
+*   trigger the icall script based on a specific event (snmptrap, log, ...)
+*   sort APM sessions by Access Profile and kill sessions based on the criticity of each AP.

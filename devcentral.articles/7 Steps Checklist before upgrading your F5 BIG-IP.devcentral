@@ -1,0 +1,67 @@
+In this example, I will assume that we are upgrading from 11.5.1 to 12.1.2
+
+**Step 1 : Check the compatibility matrix**
+
+> a) For appliance, check hardware/software compatibility
+>
+> Link: [https://support.f5.com/csp/article/K9476](https://support.f5.com/csp/article/K9476)
+>
+> b) For virtual edition, check the supported hypervisors matrix
+>
+> Link : [https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ve-supported-hypervisor-matrix.html](https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ve-supported-hypervisor-matrix.html)
+>
+> Note : If running vCMP systems, verify also the vCMP host and compatible guest version matrix
+>
+> Link : [https://support.f5.com/csp/article/K14088](https://support.f5.com/csp/article/K14088)
+
+**Step 2 : Check supported BIG-IP upgrade paths and determine if you can upgrade directly**
+
+> Link: [https://support.f5.com/csp/article/K13845](https://support.f5.com/csp/article/K13845)
+>
+> In this case, you must be running BIG-IP 10.1.x - 11.x to upgrade directly to BIG-IP 12.x
+
+**Step 3 : Download .iso files needed for the upgrade from F5 Downloads**
+
+> Link: [https://downloads.f5.com/esd/index.jsp](https://downloads.f5.com/esd/index.jsp)
+
+**Step 4 : Check if you need to re-activate the license before upgrading**
+
+> Link: [https://support.f5.com/csp/article/K7727](https://support.f5.com/csp/article/K7727)
+>
+> First, determine the "License Check Date" of the version you want to install. In this case, the version 12.1.2 was released on 2016-03-18 (License Check Date). Then, determine your "Service check date" by executing the following command from CLI :
+>
+> `> grep "Service check date" /config/bigip.license`
+>
+> The output appears similar to the following example:
+>
+> `> Service check date : 20151008`
+>
+> As the "Service check date" (20151008) is earlier than the "License Check Date" (2016-03-18), a license a reactivation is needed before upgrading. To reactivate, follow the steps under paragraph "Reactivating the system license" from the link given above.
+
+**Step 5 : Use "iHealth Upgrade Advisor" to determine if any configuration modification is needed before/after the upgrade**
+
+> Link: [https://ihealth.f5.com/](https://ihealth.f5.com/)
+>
+> Generate a qkview and then upload it to iHealth (link above).
+>
+> For more info about how to generate a qkview read following article
+>
+> Link: [https://support.f5.com/csp/article/K12878](https://support.f5.com/csp/article/K12878)
+>
+> For more info about "iHealth Upgrade Advisor" read following article
+>
+> Link: [https://devcentral.f5.com/articles/ihealth-upgrade-advisor-making-upgrades-a-little-easier-20001](https://devcentral.f5.com/articles/ihealth-upgrade-advisor-making-upgrades-a-little-easier-20001)
+
+**Step 6 : Backup the configuration by generating a UCS archive and download it on a safe place**
+
+> Link: [https://support.f5.com/csp/article/K13132](https://support.f5.com/csp/article/K13132)
+>
+> a) If are using the "Configuration Utility", follow the procedure under "Backing up configuration data by using the Configuration utility"
+>
+> b) If you prefer using CLI, follow the procedure under "Backing up configuration data using the tmsh utility"
+
+**Step 7 : From the release note of the version you wish to install read the "Installation checklist"**
+
+> Link: [https://support.f5.com/kb/en-us/products/big-ip_ltm/releasenotes/product/relnote-ltm-12-1-2.html](https://support.f5.com/kb/en-us/products/big-ip_ltm/releasenotes/product/relnote-ltm-12-1-2.html)
+>
+> Under the paragraph "Installation checklist" of the release note, ensure that you have read and verified listed points.

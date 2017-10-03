@@ -1,0 +1,94 @@
+# Proof of Concept
+
+### Generate a valid Digest response
+
+when hitting "/test", the irule build the Digest response and log it to the ltm log file.
+
+    when RULE_INIT {
+        set static::nonce "MDgvMjUvMjAxNyAwOToyNTo0Nw"
+        set static::user "testuser"
+        set static::password "testpass"
+        set static::realm "testrealm"
+        set static::method "GET"
+        set static::uri "/testuri"
+        set static::client_nonce "389db6597243daf2"
+        set static::nonce_count "00000001"
+    }
+
+    when HTTP_REQUEST {
+
+        # working test
+
+        if { [HTTP::uri] eq "/test" } {
+            binary scan [md5 "$static::user:$static::realm:$static::password"] H* ha1
+            log local0. "HA1 = $ha1"
+
+            binary scan [md5 "$static::method:$static::uri"] H* ha2
+
+            log local0. "HA2 = $ha2"
+
+            binary scan [md5 "$ha1:$static::nonce:$static::nonce_count:$static::client_nonce:auth:$ha2"] H* response
+            log local0. "response = $response"
+
+        }
+    }
+  
+
+### Play Digest SSO when receiving a 401 response from the backend
+
+*note : Client Nonce is currently a static variable. Must be generated within the irule instead.*
+
+    when RULE_INIT {
+      set static::user "testuser"
+      set static::password "testpass"
+      set static::client_nonce "389db6597243daf2"
+      set static::nonce_count "00000001"
+    }
+
+    when HTTP_REQUEST {
+
+      # set vars required for Digest SSO
+
+      set uri [HTTP::uri]
+      set method [HTTP::method]
+      set retried 0
+
+      # insert a dummy text. Help to inject Digest SSO
+
+      HTTP::header replace Authorization "irule-test-digest-sso"
+      set request [HTTP::request]
+      HTTP::header remove Authorization
+
+    }
+
+    when HTTP_RESPONSE {
+      if { [HTTP::status] contains "401" and [HTTP::header exists "WWW-Authenticate"] and [HTTP::header "WWW-Authenticate"] contains "Digest" and $retried == 0 } {
+
+          set www_auth [HTTP::header "WWW-Authenticate"]
+
+          set fields [split $www_auth ","]
+
+          set realm [lindex [split [lindex $fields 0] "="] 1]
+          set nonce [lindex [split [lindex $fields 1] "="] 1]
+
+          # retrieve username and password from wherever you want. Can be APM, Basic authentication, ...
+          binary scan [md5 "$static::user:$realm:$static::password"] H* ha1
+
+          binary scan [md5 "$method:$uri"] H* ha2
+
+          binary scan [md5 "$ha1:$nonce:$static::nonce_count:$static::client_nonce:auth:$ha2"] H* response
+
+          set retried 1
+
+          set auth_value "Digest username=\"$static::user\", realm=\"$realm\", nonce=\"$nonce\", uri=\"$uri\", algorithm=MD5, response=\"$response\", opaque=\"0000000000000000\", qop=auth, nc=$static::nonce_count, cnonce=\"$static::client_nonce\""
+
+          # insert Authorization header with Digest
+          set updated_request [string map "$find $auth_value" $request]
+
+          # resend the request with the Authorization header filled
+          HTTP::retry $updated_request
+
+      } else {
+          set retried 0
+      }
+    }

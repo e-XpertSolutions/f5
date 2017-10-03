@@ -1,0 +1,126 @@
+I often use the ifile feature to provide customized web content to users targeting my web applications through a BIG-IP device. I already had a request to import 1000+ files to the F5 BIG-IP in order to build a complete web framework full of .css, .js and .html file extensions.
+
+Uploading those files one by one is really time-consuming and boring. That's why we have developed a small piece of code that automatically watch a folder and create, modify or delete ifiles accordingly.
+
+# Managing ifiles using Curl tool
+
+When an administrator decides to manually upload few files to the BIG-IP device using iControl REST API, he has to execute several consecutive commands.
+
+## Uploading a file to the BIG-IP
+
+You need to calculate the size of the file you want to upload:
+
+    du -b testfile.txt
+
+    930 testfile.txt
+
+
+Then, you can upload the file to the BIG-IP device:
+
+    curl -v -k -X POST -H "Content-Type: application/octet-stream" -H "Content-Range: 0-929/930" -u admin:admin --data-binary "@testfile.txt" https://bigip_host/mgmt/shared/file-transfer/uploads/testfile.txt
+
+## Creating an ifile (System level)
+
+    curl -v -k -u admin:admin -X PUT -H "Content-Type: application/json" -d '{"name": "testfile.txt", "source-path": "file:/var/config/rest/downloads/testfile.txt"}' https://bigip_host/mgmt/tm/sys/file/ifile/testfile.txt
+
+## Creating an ifile object (LTM level)
+
+    curl -v -k -u admin:admin -X POST -H "Content-Type: application/json" -d '{"name":"testfile.txt", "file-name": "testfile.txt"}' https://bigip_host/mgmt/tm/ltm/ifile
+
+## Deleting an ifile object (LTM level)
+
+    curl -v -k -u admin:admin -X DELETE https://bigip_host/mgmt/tm/ltm/ifile/testfile.txt
+
+## Deleting an ifile (System level)
+
+    curl -v -k -u admin:admin -X DELETE https://bigip_host/mgmt/tm/sys/file/ifile/testfile.txt
+
+# Automatically synchronize a local folder with your BIG-IP
+
+If you already had the request to deal with thousand of files to upload as ifiles in a BIG-IP device, you may know that managing this kind of request using Postman or a shell script based on wget or curl commands is a nightmare. This is the reason why f5-auto-uploader tool came alive.
+
+f5-auto-uploader creates, modify or deletes ifiles automatically based on watched directories. All changes are enclosed in a transaction.
+
+# Downloading f5-auto-uploader binary file
+
+You can download the binary file directly from the github project :
+
+    `https://github.com/e-XpertSolutions/f5-auto-uploader/releases`
+
+The binary file is available for Linux and Windows OS.
+
+# Installing f5-auto-uploader from source
+
+Assuming, you have successfully deployed the golang framework in your environment, you can download the f5-auto-uploader project to your computer by typing the following command :
+
+    `go get github.com/e-XpertSolutions/f5-auto-uploader`
+
+you should be able to find the binary file in the $GOPATH/bin folder. This is a self contained binary file, so you can put it in another Linux system and even the F5 device itself if you want to.
+
+# Writing a configuration file
+
+You can find below an example of a toml formatted configuration file you need to provide as argument to the binary :
+
+    [f5]
+    auth_method = "token"
+    url = "https://bigip_host"
+    user = "admin"
+    password = "admin"
+    ssl_check = false
+    login_provider_name = "tmos"
+
+    [[watch]]
+    directory = "/tmp/test"
+    exclude = [".*"]
+
+    [[watch]]
+    directory = "/tmp/test2"
+    exclude = [".*"]
+
+
+You can define multiple directories to watch at the same time. Every action made on a file in one of those repositories is automatically synchronized with the BIG-IP device. It is possible to exclude specific files using a wildcard path. The example above get rid of hidden files in a Linux OS.
+
+You can define either Basic or Token based authentication. If you prefer using the Basic authentication method, you can change the configuration file as defined below :
+
+    [f5]
+    auth_method = "basic"
+    url = "https://bigip_host"
+    user = "admin"
+    password = "admin"
+    ssl_check = false
+
+
+# Watch remote repositories
+
+You can watch remote directories as well. If you are running Linux OS, you can mount external file systems using Samba or SSH for example :
+
+Create the mount point :
+
+    sudo mkdir -p /mnt/sshfs/ssh-folder
+
+Mount the remote folder :
+
+    sshfs root@hostname:/home/user/ /mnt/sshfs/ssh-folder -C -p 22
+
+# Running f5-auto-uploader
+
+You can then run the service using the following command line :
+
+    ./f5-auto-uploader -config /etc/config/config.toml
+
+
+You can display the help by adding the -help argument to the command line :
+
+    ./f5-auto-uploader -help
+
+    usage: f5-auto-uploader
+      -config string
+            path to configuration file (default "config.toml")
+      -verbose
+            enable verbose mode
+      -version
+            print current version and exit
+
+# Support
+
+This project is available on [github](https://github.com/e-XpertSolutions/f5-auto-uploader). This project rely on the [f5-rest-client](https://github.com/e-XpertSolutions/f5-rest-client) library we developed to integrate easily the iControl REST API in a golang project.

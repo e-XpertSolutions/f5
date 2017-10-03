@@ -1,0 +1,204 @@
+f5-rest-client implements a REST client to query the F5 BIG-IP iControl REST API.
+
+### Installation
+
+`go get -u github.com/e-XpertSolutions/f5-rest-client/f5`
+
+### Available authentication methods
+
+#### Basic authentication
+
+    f5Client, err := f5.NewBasicClient(base_url, username, password)
+
+
+#### Token based authentication
+
+    f5Client, err := f5.NewTokenClient(base_url, username, password, login_provider_name, skip_ssl_verification)
+
+
+### Usage
+
+      // Copyright 2017 e-Xpert Solutions SA. All rights reserved.
+      // Use of this source code is governed by a BSD-style
+      // license that can be found in the LICENSE file.
+
+      package main
+
+      import (
+          "encoding/json"
+          "log"
+
+          "github.com/e-XpertSolutions/f5-rest-client/f5"
+          "github.com/e-XpertSolutions/f5-rest-client/f5/net"
+      )
+
+      func sexyPrint(label string, a interface{}) {
+          j, err := json.MarshalIndent(a, "", "   ")
+          if err != nil {
+              log.Fatal(err)
+          }
+          log.Print("DEBUG ", label, ":\n", string(j))
+      }
+
+      func main() {
+          // 1) Basic Authentication
+          f5Client, err := f5.NewBasicClient("https://127.0.0.1", "admin", "admin")
+
+          // 2) Token Based Authentication
+          // f5Client, err := f5.NewTokenClient("https://127.0.0.1", "admin", "admin", "tmos", true)
+
+          if err != nil {
+              log.Fatal(err)
+          }
+          f5Client.DisableCertCheck()
+          netClient := net.New(f5Client)
+          self, err := netClient.Self().ListAll()
+          if err != nil {
+              log.Fatal(err)
+          }
+          sexyPrint("SelfIP List:", self)
+      }
+
+
+### FEATURES
+
+*   Basic authentication
+*   Token based authentication
+*   Manage Virtual Server, pool, node, irules, monitors
+*   Manage Cluster Management
+*   Manage interfaces, vlan, trunk, self ip, route, route domains
+*   Manage virtualization features (/vcmp)
+*   Manage system related stuffs
+*   Add Helper functions to enable, disable or force a node offline
+*   Add Helper functions to enable or disable a Virtual Server
+*   [new] List expiring certificates
+*   [new] List expired certificates
+*   [new] Transaction support
+
+### ROADMAP
+
+*   Add support for authentication through external providers
+*   Manage access policies (/apm)
+*   Manage security (/security)
+*   Manage DNS and global load balancing servers (/gtm)
+*   Manage analytics configuration (/analytics)
+*   Add support for results pagination
+*   Add support for API versioning
+*   Add support for Stats retrieval on node, pool, virtual and profiles
+*   Add support for new API endpoints coming in [v13](https://devcentral.f5.com/wiki/iControlREST.New-In-Version-13-0-0.ashx)
+
+### Examples
+
+##### Transactions - Create a simple HTTP service
+
+    f5Client, err := f5.NewBasicClient("https://127.0.0.1", "admin", "admin")
+    if err != nil {
+        log.Fatal(err)
+    }
+    f5Client.DisableCertCheck()
+
+    // Start new transaction.
+    tx, err := f5Client.Begin()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    ltmClient := ltm.New(tx)
+
+    // Create a HTTP monitor
+    log.Print("Create a HTTP monitor")
+
+    monitorConfig := ltm.MonitorHTTPConfig{
+        Name: "http_monitor_" + tx.TransactionID(),
+        Send: "GET / HTTP/1.0\r\n\r\n",
+        Recv: "Hello",
+    }
+
+    if err := ltmClient.MonitorHTTP().Create(monitorConfig); err != nil {
+        log.Fatal(err)
+    }
+
+    // Create a Pool
+    log.Print("Create a pool")
+
+    poolConfig := ltm.PoolConfig{
+        Name:    "pool_" + tx.TransactionID(),
+        Monitor: "/Common/http_monitor_" + tx.TransactionID(),
+        Members: []string{"10.1.10.10:80", "10.1.10.11:80"},
+    }
+
+    if err := ltmClient.Pool().Create(poolConfig); err != nil {
+        log.Fatal(err)
+    }
+
+    // Create a Virtual Server
+    log.Print("Create a Virtual Server")
+
+    vsConfig := ltm.VirtualServerConfig{
+        Name:        "vs_http_" + tx.TransactionID(),
+        Destination: "10.1.20.130:80",
+        IPProtocol:  "tcp",
+        Pool:        "pool_" + tx.TransactionID(),
+        SourceAddressTranslation: ltm.SourceAddressTranslation{
+            Type: "automap",
+        },
+        Profiles: []ltm.Profile{
+            {
+                Name:    "tcp-mobile-optimized",
+                Context: "all",
+            },
+            {
+                Name: "http",
+            },
+        },
+    }
+
+    if err := ltmClient.Virtual().Create(vsConfig); err != nil {
+        log.Fatal(err)
+    }
+
+    // Commit to make the changes persistent.
+    if err := tx.Commit(); err != nil {
+        log.Fatal(err)
+    }
+
+
+##### List SSL Certificates
+
+        sysClient := sys.New(f5Client)
+        certs, err := sysClient.FileSSLCert().ListAll()
+        if err != nil {
+            log.Fatal(err)
+        }
+        sexyPrint("Certificates", certs)
+
+
+##### List expired SSL Certificates
+
+      sysClient := sys.New(f5Client)
+
+      certs, err := sysClient.FileSSLCert().ListExpired()
+      if err != nil {
+        log.Fatal(err)
+      }
+      sexyPrint("Expired Certificates", certs)
+
+
+##### List expiring SSL Certificates
+
+      sysClient := sys.New(f5Client)
+
+      // ListExpiring(number_of_seconds)
+      certs, err := sysClient.FileSSLCert().ListExpiring(60 * 60 * 24 * 15)
+      if err != nil {
+        log.Fatal(err)
+      }
+      sexyPrint("Expiring Certificates", certs)
+
+### Contributing
+
+We appreciate any form of contribution (feature request, bug report, pull request, ...). We have no special requirements for Pull Request, just follow the standard [GitHub way](https://help.github.com/articles/using-pull-requests/).
+
+### License
+
+The sources are release under a BSD 3-Clause License. The full terms of that license can be found in LICENSE file of this repository.
