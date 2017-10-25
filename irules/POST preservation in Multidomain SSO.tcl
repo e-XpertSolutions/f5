@@ -1,6 +1,12 @@
 when RULE_INIT {
     set static::idp_host "idp.expertlab.net"
     set static::md_start_uri "/F5Networks-SSO-Req?SSO_ORIG_URI="
+
+    # for v11.x and v12.x deployment
+    # set static::body_var "session.server.body"
+
+    # for v13.x deployment
+    set static::body_var "session.server.initial_req_body"
 }
 
 when HTTP_REQUEST {
@@ -21,12 +27,12 @@ when HTTP_REQUEST {
             return
         }
     }
-    
+
     if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::header Referer] eq "http://idp.expertlab.net/my.policy" } {
-        if { [ACCESS::session data get session.server.initial_req_body] != "" } {
+        if { [ACCESS::session data get $static::body_var] != "" } {
             set ct [URI::decode [URI::query [HTTP::uri] ct]]
             set post 1
-            HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"data\" type=\"hidden\" value=\"[b64encode [ACCESS::session data get session.server.initial_req_body]]\"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
+            HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"data\" type=\"hidden\" value=\"[b64encode [ACCESS::session data get $static::body_var]]\"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
             return
         }
     }
