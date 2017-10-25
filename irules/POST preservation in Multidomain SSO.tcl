@@ -18,6 +18,8 @@
 # * Basic support for POST preservation in v13
 # * Add support for v11 and v12 environments
 # * Replace static::idp_host by [PROFILE::access primary_auth_service]
+# * Add a static var to enable or disable the dummy form designed for testing purposes
+# * Avoid POSTing real body multiple times. A dummy var is used to retrieve the original POST content
 ###
 
 when RULE_INIT {
@@ -56,23 +58,23 @@ when HTTP_REQUEST {
         if { [ACCESS::session data get $static::body_var] != "" } {
             set ct [URI::decode [URI::query [HTTP::uri] ct]]
             set post 1
-            HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"data\" type=\"hidden\" value=\"[b64encode [ACCESS::session data get $static::body_var]]\"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
+            set dummy [getfield [expr {rand()}] "." 1]
+            ACCESS::session data set session.server.dummy $dummy
+            HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"dummy\" type=\"hidden\" value=\"$dummy"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
             return
         }
     }
 
     if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [info exists post] and $post } {
         if { [HTTP::method] eq "POST"} {
-            HTTP::header replace Content-Type $ct
             set cl [HTTP::header Content-Length]
-            HTTP::collect $cl
+            if { [HTTP::payload] contains "dummy" and [ACCESS::session data get session.server.dummy] eq [URI::query "/?[HTTP::payload]" dummy] } {
+              HTTP::header replace Content-Type $ct
+              HTTP::header replace Content-Length [string length [ACCESS::session data get $static::body_var]]
+              HTTP::payload replace 0 $cl [ACCESS::session data get $static::body_var]
+            }
         }
     }
-}
-
-when HTTP_REQUEST_DATA {
-    set payload [URI::decode [URI::query "/?[HTTP::payload]" data]]
-    HTTP::payload replace 0 $cl [b64decode $payload]
 }
 
 ###
