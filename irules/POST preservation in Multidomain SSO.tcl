@@ -51,9 +51,9 @@ when HTTP_REQUEST {
             set ct [HTTP::header Content-Type]
             set uri [HTTP::uri]
             if { [URI::query $uri] != "" } {
-                set uri $uri&ct=[URI::encode $ct]
+                set uri $uri&ct=[URI::encode $ct]&f5-mdsso-post=1
             } else {
-                set uri $uri?ct=[URI::encode $ct]
+                set uri $uri?ct=[URI::encode $ct]&f5-mdsso-post=1
             }
             HTTP::respond 307 noserver Location "[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode https://[HTTP::host]$uri]]" Connection Close
             return
