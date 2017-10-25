@@ -28,6 +28,7 @@
 # 2017/11/25
 # * Remove some coding errors
 # * Refactoring of some parts of the irule
+# * Remove unecessary checks on the SP hostname
 ###
 
 when RULE_INIT {
@@ -44,7 +45,7 @@ when RULE_INIT {
 }
 
 when HTTP_REQUEST {
-    if { ![ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::host] eq "sp.expertlab.net" and !([HTTP::path] eq "/F5Networks-SSO-Resp") } {
+    if { ![ACCESS::session exists [HTTP::cookie MRHSession]] and !([HTTP::path] eq "/F5Networks-SSO-Resp") } {
         if { [HTTP::method] eq "POST" } {
             # save post data
             set ct [HTTP::header Content-Type]
