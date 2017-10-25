@@ -15,11 +15,19 @@
 
 ###
 # Release notes
+#
+# 2017/11/23
 # * Basic support for POST preservation in v13
 # * Add support for v11 and v12 environments
+#
+# 2017/11/24
 # * Replace static::idp_host by [PROFILE::access primary_auth_service]
 # * Add a static var to enable or disable the dummy form designed for testing purposes
 # * Avoid POSTing real body multiple times. A dummy var is used to retrieve the original POST content
+#
+# 2017/11/25
+# * Remove some coding errors
+# * Refactoring of some parts of the irule
 ###
 
 when RULE_INIT {
@@ -46,43 +54,25 @@ when HTTP_REQUEST {
             } else {
                 set uri $uri?ct=[URI::encode $ct]
             }
-            HTTP::respond 307 noserver Location "http://[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode http://[HTTP::host]$uri]]" Connection Close
+            HTTP::respond 307 noserver Location "[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode https://[HTTP::host]$uri]]" Connection Close
             return
         } else {
-            HTTP::respond 302 noserver Location "http://[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode http://[HTTP::host][HTTP::uri]]]" Connection Close
+            HTTP::respond 302 noserver Location "[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode https://[HTTP::host][HTTP::uri]]]" Connection Close
             return
         }
     }
 
-    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::header Referer] eq "[PROFILE::access primary_auth_service]/my.policy" } {
-        if { [ACCESS::session data get $static::body_var] != "" } {
-            set ct [URI::decode [URI::query [HTTP::uri] ct]]
-            set post 1
-            set dummy [getfield [expr {rand()}] "." 1]
-            ACCESS::session data set session.server.dummy $dummy
-            HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"dummy\" type=\"hidden\" value=\"$dummy"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
-            return
-        }
+    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::query] contains "f5-mdsso-post=1" and [ACCESS::session data get $static::body_var] != "" } {
+        set ct [URI::decode [URI::query [HTTP::uri] ct]]
+        set dummy [getfield [expr {rand()}] "." 2]
+        ACCESS::session data set session.server.dummy $dummy
+        ACCESS::session data set session.server.ct $ct
+        HTTP::respond 200 content "<html><head><title></title></head><body onload=\"document.autosubmit.submit();\"> this page is used to hold your data while you are being authorized for your request.<br><br> you will be forwarded to continue the authorization process. if this does not happen automatically, please click the continue button below. <form name=\"autosubmit\" method=\"post\" action=\"[HTTP::path]\"> <input name=\"dummy\" type=\"hidden\" value=\"$dummy\"> <input type=\"submit\" value=\"continue\"> </form></body></html>" noserver Content-Type "text/html"
+        return
     }
 
-    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [info exists post] and $post } {
-        if { [HTTP::method] eq "POST"} {
-            set cl [HTTP::header Content-Length]
-            if { [HTTP::payload] contains "dummy" and [ACCESS::session data get session.server.dummy] eq [URI::query "/?[HTTP::payload]" dummy] } {
-              HTTP::header replace Content-Type $ct
-              HTTP::header replace Content-Length [string length [ACCESS::session data get $static::body_var]]
-              HTTP::payload replace 0 $cl [ACCESS::session data get $static::body_var]
-            }
-        }
-    }
-}
-
-###
-# Provides a dummy forms for testing
-###
-
-when ACCESS_ACL_ALLOWED {
-    if { $static::dummy_form } {
-      HTTP::respond 200 content "<html><body><form action=\"/action_page.php\" method=\"post\"> <fieldset> <legend>Personal information:</legend> First name:<br> <input type=\"text\" name=\"firstname\" value=\"Mickey\"><br> Last name:<br> <input type=\"text\" name=\"lastname\" value=\"Mouse\"><br><br> <input type=\"submit\" value=\"Submit\"> </fieldset> </form></body></html>" Content-Type "text/html"
+    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::method] eq "POST" and [HTTP::payload] contains "dummy" and [ACCESS::session data get session.server.dummy] eq [URI::query "/?[HTTP::payload]" dummy] } {
+        HTTP::header replace Content-Type [ACCESS::session data get session.server.ct]
+        HTTP::payload replace 0 [HTTP::header Content-Length] [ACCESS::session data get $static::body_var]
     }
 }
