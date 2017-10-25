@@ -1,3 +1,24 @@
+###
+# POST preservation feature
+# for Virtual Server with Multidomain SSO configured
+#
+# require : APM
+###
+
+###
+# Special notes
+# To support POST preservation in v11 and v12,
+# the administrator needs to configure special session variable assignment before the Allow ending in a Access policy
+# session.server.body = Session Variable session.server.initial_req_body
+# session.policy.result.redirect.url = Session Variable session.server.landinguri_base64
+###
+
+###
+# Release notes
+# * Basic support for POST preservation in v13
+# * Add support for v11 and v12 environments
+###
+
 when RULE_INIT {
     set static::idp_host "idp.expertlab.net"
     set static::md_start_uri "/F5Networks-SSO-Req?SSO_ORIG_URI="
