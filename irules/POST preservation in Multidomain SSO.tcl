@@ -17,10 +17,10 @@
 # Release notes
 # * Basic support for POST preservation in v13
 # * Add support for v11 and v12 environments
+# * Replace static::idp_host by [PROFILE::access primary_auth_service]
 ###
 
 when RULE_INIT {
-    set static::idp_host "idp.expertlab.net"
     set static::md_start_uri "/F5Networks-SSO-Req?SSO_ORIG_URI="
 
     # for v11.x and v12.x deployment
@@ -41,15 +41,15 @@ when HTTP_REQUEST {
             } else {
                 set uri $uri?ct=[URI::encode $ct]
             }
-            HTTP::respond 307 noserver Location "http://$static::idp_host$static::md_start_uri[URI::encode [b64encode http://[HTTP::host]$uri]]" Connection Close
+            HTTP::respond 307 noserver Location "http://[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode http://[HTTP::host]$uri]]" Connection Close
             return
         } else {
-            HTTP::respond 302 noserver Location "http://$static::idp_host$static::md_start_uri[URI::encode [b64encode http://[HTTP::host][HTTP::uri]]]" Connection Close
+            HTTP::respond 302 noserver Location "http://[PROFILE::access primary_auth_service]$static::md_start_uri[URI::encode [b64encode http://[HTTP::host][HTTP::uri]]]" Connection Close
             return
         }
     }
 
-    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::header Referer] eq "http://idp.expertlab.net/my.policy" } {
+    if { [ACCESS::session exists [HTTP::cookie MRHSession]] and [HTTP::header Referer] eq "[PROFILE::access primary_auth_service]/my.policy" } {
         if { [ACCESS::session data get $static::body_var] != "" } {
             set ct [URI::decode [URI::query [HTTP::uri] ct]]
             set post 1
