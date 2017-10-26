@@ -105,8 +105,8 @@ when HTTP_REQUEST {
     set json_result [call /Common/sys-exec::json2dict $rbody]
 
     if { $status contains "200" } {
-      set state [lindex $json_result 3]
-      set trans_id [lindex $json_result 1]
+      set state [lindex $json_result [expr {[lsearch $json_result "state"]+1}]]
+      set trans_id [lindex $json_result [expr {[lsearch $json_result "transId"]+1}]]
 
       if { $state contains "STARTED" } {
         HTTP::respond 403 content "{\"error\": \"Transaction failed\",\"error-message\": \"[lindex $json_result 3]\"}" noserver Content-Type "application/json" Connection Close
@@ -141,8 +141,8 @@ when HTTP_REQUEST {
         # extract client_id and client_secret from JSON body
         ###
 
-        set client_id [lindex $json_result 21]
-        set client_secret [lindex $json_result 23]
+        set client_id [lindex $json_result [expr {[lsearch $json_result "clientId"]+1}]]
+        set client_secret [lindex $json_result [expr {[lsearch $json_result "clientSecret"]+1}]]
 
         ###
         # prepare and execute API REST call to bind the client application to the OAuth profile. Endpoint: /mgmt/tm/apm/profile/oauth/~$static::adm_parition~$static::oauth_profile/client-apps
